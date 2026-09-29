@@ -2,7 +2,7 @@
 name: payouts
 description: How to send money with the glomo (Glomopay) API - creating and approving v2 beneficiaries, choosing a payout rail (UPI, IMPS, NEFT, RTGS, IPP, FTS, SEPA, FPS, NPP, SWIFT), with-quote vs without-quote payouts, payout purpose codes, the payout status lifecycle, which failures to retry, cancellation rules, queued payouts, balances and RFIs. Use when building or debugging anything that pays a beneficiary.
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # glomo payouts
@@ -12,7 +12,8 @@ Read `glomo:integration` first for auth, amounts, `request_id` and error handlin
 ## Ordered sequence
 
 1. **Beneficiary**: `POST /v2/beneficiaries` with `category: payout`. Store the `bene_` ID. There is no v1 beneficiary API.
-2. **Wait until the beneficiary is `active`.** If the account reviews beneficiaries, new ones start `pending` and move to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`). Other accounts create them `active` straight away. A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
+   - `notes` may have required fields. glomo configures them per account, and for beneficiaries they are checked on create. The beneficiary's country only changes format validation (for example, a PAN format for Indian beneficiaries). A missing required field is a 422 "Validation failed: Notes <field> is required", and type and validation errors come back the same way. It isn't LRS-only: a USD SWIFT `category: payout` beneficiary has been refused with "Notes tax_identification_number is required". No API lists the fields, so ask the developer to get them from their glomo account manager; don't guess keys.
+2. **Wait until the beneficiary is `active`.** If glomo has enabled beneficiary review on the account (it does this per account), new ones start `pending` and move to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`). Other accounts create them `active` straight away. A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
 3. **Documents** if the purpose code needs them: `POST /document`, then pass the `doc_` IDs in the payout's `documents`.
 4. **Quote** (optional): `POST /quotes` with `resource: payout` and `payment_method: {type: "bank_transfer", subtype: "local_transfer" | "swift_transfer"}`. It returns one option per rail of that subtype whose limits fit the amount, valid 30 minutes and usable once. It does not look at the beneficiary, so a quoted rail may still not suit this beneficiary: the payout is then a 400 "quote_id is not compatible with the selected beneficiary".
 5. **Payout**: `POST /payouts` with a deterministic `request_id`.
@@ -83,9 +84,9 @@ Never auto-retry a payout on a timeout or 5xx with a new `request_id`. Reuse the
 
 ## Balances and queued payouts
 
-- A payout debits the merchant's balance in the source currency (`GET /balances`). Funds are held once screening clears and the payout is released for processing (on accounts without queueing or maker-checker, that happens inside the create call). Nothing is held while a payout is `pending_approval`, `queued`, `action_required` or under review. Holds are released on failure or cancellation. Fees must be less than the source amount.
+- A payout debits the merchant's balance in the source currency (`GET /balances`): the Funded Balance if the account has it enabled (`funded_balances` in the response), else the Primary Balance. Only Add Balance top-ups (`add_funds` payins, IDs starting `addfunds_`) credit the Funded Balance; regular payins credit the Primary Balance, so on a Funded Balance account incoming customer payments do not fund payouts. Funds are held once screening clears and the payout is released for processing (on accounts without queueing or maker-checker, that happens inside the create call). Nothing is held while a payout is `pending_approval`, `queued`, `action_required` or under review. Holds are released on failure or cancellation. Fees must be less than the source amount.
 - Without payout queueing, a short balance is a 400 with `code: INSUFFICIENT_BALANCE` and a message stating the additional amount required.
-- With queueing enabled on the account, payouts wait in `queued` and are screened on release. The queue is released every 15 minutes, strictly first-in-first-out per currency. One large payout at the head blocks smaller ones behind it. Queued payouts expire after 30 days. https://docs.glomo.one/payout/queued-payouts.md
+- With queueing enabled on the account, every payout is created `queued` and is screened on release. The queue is released every 15 minutes, at :02, :17, :32 and :47 past the hour (the same marks in UTC and IST), strictly first-in-first-out per source currency. A payout is released only when the balance it debits covers it, and one at the head that isn't covered blocks the ones behind it. A released payout reads `in_progress`. Queued payouts expire after 30 days with `QUEUE_EXPIRED`. https://docs.glomo.one/payout/queued-payouts.md
 - Convert between currencies with `POST /balance_conversions`. https://docs.glomo.one/multi-currency-account/balances.md
 
 ## Mistakes to avoid
@@ -96,3 +97,5 @@ Never auto-retry a payout on a timeout or 5xx with a new `request_id`. Reuse the
 - Retrying with a fresh `request_id` after a timeout, which pays twice.
 - Treating `pending_approval` or `queued` as failures and resubmitting.
 - Using a payin purpose code, or inventing one.
+- Calling `getMerchant` (`GET /platform/merchants/{merchant_id}`) to check credentials. It is platform-only: it finds merchants under your platform account. A direct merchant never needs it; check credentials with `getBalance` (`GET /balances`).
+- Mocking a queued payout straight to `success`, or polling for `pending` after mocking it. In sandbox a `queued` → `success` mock is a 400 "State change not allowed"; mock `pending` first, which reads back as `in_progress`, then `success` or `failed` (`glomo:testing`).
