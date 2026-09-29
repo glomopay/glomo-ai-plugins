@@ -2,7 +2,7 @@
 name: testing
 description: How to verify a glomo (Glomopay) integration end to end in sandbox before shipping - getting test keys, the sandbox-only mock endpoints that simulate inbound payments, payout and refund outcomes, beneficiary review, funds availability and settlement; the reserved 6623 amount that forces a sanctions-screening hit; test cards; step-by-step recipes to drive each flow to success and failure; and what sandbox cannot simulate. Use when testing, writing integration tests, or checking that generated glomo API code actually works.
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
 ---
 
 # glomo sandbox testing
@@ -28,7 +28,7 @@ Use these to move objects into the states a real bank, rail or compliance analys
 | `PATCH /payment/{id}/mock-funds-available` | Funds clear | `funds_available` set, `payment.funds_available` webhook |
 | `PATCH /payin/{id}/mock_mark_reviewed` | Compliance finishes reviewing a payment link | Payment link `under_review` → `active` |
 | `PATCH /v2/beneficiaries/{id}/mock-review` `{review_action: "approve" \| "reject"}` | Beneficiary review | `pending` → `active` or `rejected` (422 if not `pending`) |
-| `PATCH /payouts/mock` `{id, status}` | The rail's outcome | `pending`, `success`, `failed`, `action_required` or `cancelled`, only along legal transitions. `action_required` is only reachable from `pending_approval`, `queued` or under review, not from a freshly processing payout. A mocked `failed` has `error_code: null`. |
+| `PATCH /payouts/mock` `{id, status}` | The rail's outcome | `pending`, `success`, `failed`, `action_required` or `cancelled`, only along legal transitions. `action_required` is only reachable from `pending_approval`, `queued` or under review, not from a freshly processing payout. A `queued` payout can't go straight to `success` (400 "State change not allowed"): mock `pending` first, which reads back as `in_progress`, then `success` or `failed`. A mocked `failed` has `error_code: null`. |
 | `PATCH /refunds/{id}/mock_update_status` `{status: "success" \| "failed"}` | The bank's refund outcome | `success` only once the refund has been sent to the bank; called earlier it errors; `GET` the refund and retry shortly |
 | `POST /settlements/mock-trigger` | The settlement run | Settles eligible funds (USD, EUR, GBP, AED, SGD) |
 | `PATCH /platform/merchants/status-update` `{merchant_id, target_status: "success"}` | Onboarding approval of a child merchant (platform accounts) | Child merchant → `success` |
@@ -61,7 +61,16 @@ Run each to its terminal state and check both the API response and the webhook y
 
 **Funds and settlement**: a paid payment → `mock-funds-available` if not already available → `POST /settlements/mock-trigger` → expect `settlement` webhooks.
 
-**Payout success and failure**: `POST /v2/beneficiaries` → `mock-review approve` if `pending` → `POST /payouts` → `PATCH /payouts/mock {id, status: "success"}`. Repeat with `failed`; the mocked failure has `error_code: null`, so check your handler copes with a missing code (most real failures carry one). `action_required` can only be mocked on accounts with queueing or maker-checker, while the payout is `queued` or `pending_approval`. Also test `mock-review reject` and confirm your code refuses to pay a rejected beneficiary (the payout create is a 400).
+**Payout success and failure**: `POST /v2/beneficiaries` → `mock-review approve` if `pending` → `POST /payouts` → read `status` in the response; if it is `queued`, `PATCH /payouts/mock {id, status: "pending"}` first (the payout then reads `in_progress`, never `pending`, so don't poll for `pending`) → `PATCH /payouts/mock {id, status: "success"}`. A payout moved with the `pending` mock is never sent to a rail, so it always needs the `success` (or `failed`) mock, whatever its rail. Only a payout the queue releases for real completes on its own on a local rail in sandbox; `GET` the payout before mocking it. Repeat with `failed`; the mocked failure has `error_code: null`, so check your handler copes with a missing code (most real failures carry one). `action_required` can only be mocked on accounts with queueing or maker-checker, while the payout is `queued` or `pending_approval`. Also test `mock-review reject` and confirm your code refuses to pay a rejected beneficiary (the payout create is a 400).
+
+**Testing the real queue release** (instead of mocking past it): on accounts with payout queueing, every payout is created `queued`. The queue is released every 15 minutes, at :02, :17, :32 and :47 past the hour (the same marks in UTC and IST), first-in-first-out per source currency. A payout is released only when the balance it debits covers it, and an uncovered payout at the head blocks the ones behind it. A released payout reads `in_progress`. Queued payouts expire after 30 days with `QUEUE_EXPIRED`. The debited balance is the Funded Balance if the account has it enabled, else the Primary Balance. Only Add Balance top-ups (`add_funds` payins, IDs starting `addfunds_`) credit the Funded Balance; regular payins credit the Primary Balance. To test it:
+
+1. Fund the balance the payout debits. For the Funded Balance, start a top-up in the dashboard: My account → Balances → Add balance → choose the currency (https://docs.glomo.one/multi-currency-account/add-balance.md).
+2. `POST /payment/mock {amount, currency, payin_id}` with `payin_id` set to the Add Balance top-up (`addfunds_…`).
+3. If the funds are not yet available, `PATCH /payment/{id}/mock-funds-available`.
+4. Wait for the next release, then `GET` the payout and expect `in_progress`.
+
+The public API doesn't list add-funds payins. `GET /payment?payment_type=add_funds` lists add-funds payments only.
 
 **Refund**: a successful payment → `POST /refunds` with a `request_id` → `PATCH /refunds/{id}/mock_update_status {status: "success"}` → expect `refund.success`. Send the same `request_id` again and expect 400 "Refund already exists for this request_id".
 
