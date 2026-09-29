@@ -1,0 +1,29 @@
+name: sync-skills
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sync-skills.mjs
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/sync-skills
+          commit-message: Sync skills from docs.glomo.one
+          title: Sync skills from docs.glomo.one
+          body: |
+            Skills changed in the glomo docs catalogue (`https://docs.glomo.one/.well-known/skills/`).
+            This PR copies them into `plugins/glomo/skills/`. Bump the plugin `version` before release.
+          delete-branch: true
