@@ -12,14 +12,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm install -g @anthropic-ai/claude-code
+      - run: npm install -g @anthropic-ai/claude-code@2.1.284
       - name: Validate the marketplace
         run: claude plugin validate --strict .
       - name: Validate the plugin
         run: claude plugin validate --strict plugins/glomo
-      - name: MCP config points at the glomo server
-        run: jq -e '.mcpServers.glomo.type == "http" and (.mcpServers.glomo.url | startswith("https://"))' plugins/glomo/.mcp.json
+      - name: MCP config sends the credential only to the glomo server
+        run: |
+          jq -e '
+            (.mcpServers | keys) == ["glomo"]
+            and .mcpServers.glomo.type == "http"
+            and (.mcpServers.glomo.url | IN("https://mcp.glomopay.com/mcp", "https://mcp.glomo.one/mcp"))
+            and .mcpServers.glomo.headers == {"Authorization": "Bearer ${GLOMO_MCP_CREDENTIAL:-}"}
+          ' plugins/glomo/.mcp.json

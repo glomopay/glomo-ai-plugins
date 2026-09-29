@@ -42,4 +42,4 @@ The plugin sends it as `Authorization: Bearer <credential>`. It is optional: wit
 
 - **The skills are generated.** They are authored in the glomo docs and published at `https://docs.glomo.one/.well-known/skills/`. Don't edit `plugins/glomo/skills/` by hand. The sync drops the catalogue's `glomo-` prefix, because Claude Code already namespaces plugin skills (`glomo-payouts` becomes `/glomo:payouts`), and rewrites references between skills to match. Run `node scripts/sync-skills.mjs` to refresh them; the `sync-skills` workflow also does this weekly and opens a PR when they change.
 - **Validate** with `claude plugin validate --strict .` and `claude plugin validate --strict plugins/glomo`. CI runs both on every PR.
-- **Release** by bumping `version` in `plugins/glomo/.claude-plugin/plugin.json`. Installed plugins pick up the new version when they update.
+- **Release** by bumping `version` in `plugins/glomo/.claude-plugin/plugin.json`. Installed plugins pick up the new version when they update. The skills sync bumps the patch version itself when skills change.
