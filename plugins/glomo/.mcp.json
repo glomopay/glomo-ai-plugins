@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "glomo": {
+      "type": "http",
+      "url": "https://mcp.glomopay.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GLOMO_MCP_CREDENTIAL:-}"
+      }
+    }
+  }
+}
