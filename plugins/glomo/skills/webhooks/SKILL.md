@@ -1,11 +1,11 @@
 ---
 name: webhooks
-description: How to consume glomo (Glomopay) webhooks correctly - the event catalogue by entity_type and event_type, which events matter for each payin and payout flow, delivery and retry behaviour, why events can arrive duplicated or out of order, how to dedupe with no event ID, and how to reconcile missed events. Use when writing or debugging a webhook handler, or deciding how an integration learns about status changes.
+description: How to consume Glomo (Glomopay) webhooks correctly - the event catalogue by entity_type and event_type, which events matter for each payin and payout flow, delivery and retry behaviour, why events can arrive duplicated or out of order, how to dedupe with no event ID, and how to reconcile missed events. Use when writing or debugging a webhook handler, or deciding how an integration learns about status changes.
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
-# glomo webhooks
+# Glomo webhooks
 
 Webhooks are how an integration learns the final state of a payment, payout, refund or subscription. The create response is rarely final. Read `glomo:integration` first.
 
@@ -26,7 +26,7 @@ The signature is in `X-Glomopay-Signature`: lowercase hex HMAC-SHA256 of the **r
 2. Compute the HMAC-SHA256 hex digest of those exact bytes.
 3. Compare to the header in constant time. On mismatch, return 4xx and do nothing else.
 
-Do not parse and re-serialise the body before hashing, and do not canonicalise it yourself. glomo sends the exact bytes it signed. Worked code for several languages: https://docs.glomo.one/platform/webhooks.md
+Do not parse and re-serialise the body before hashing, and do not canonicalise it yourself. Glomo sends the exact bytes it signed. Worked code for several languages: https://docs.glomo.one/platform/webhooks.md
 
 ## Payload
 
@@ -40,7 +40,7 @@ Do not parse and re-serialise the body before hashing, and do not canonicalise i
 
 ## Handler design
 
-These properties are what make a handler correct under glomo's delivery model:
+These properties are what make a handler correct under Glomo's delivery model:
 
 1. **Acknowledge fast.** Verify, persist the raw event, return 200, then process asynchronously. Delivery times out after 30 seconds, and a timeout counts as a failure and is redelivered even if you processed it.
 2. **Idempotent.** The same event can arrive more than once: a redelivery after your slow 200, several endpoints, or a status that legitimately repeats. Processing an event twice must be harmless.
