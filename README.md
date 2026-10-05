@@ -24,7 +24,7 @@ To offer it to everyone who works in one of your repos, add this to the repo's `
 
 ## What you get
 
-- **The glomo MCP server** (`https://mcp.glomopay.com/mcp`). Docs search, API search and details, sample requests and the implementation planner work without a credential. `glomo_api_read` and `glomo_api_write` run calls against your sandbox account and need an MCP credential.
+- **The glomo MCP server** (`https://mcp.glomo.one/mcp`). Docs search, API search and details, sample requests and the implementation planner work without a credential. `glomo_api_read` and `glomo_api_write` run calls against your sandbox account and need an MCP credential.
 - **Agent skills:** `/glomo:integration`, `/glomo:payins`, `/glomo:payouts`, `/glomo:testing` and `/glomo:webhooks`. Claude Code loads each one when your task needs it, or you can run it by name.
 
 ## Sandbox API calls
