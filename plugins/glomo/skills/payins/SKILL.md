@@ -1,11 +1,11 @@
 ---
 name: payins
-description: How to collect money with the glomo (Glomopay) API - choosing between payment links, orders with hosted checkout, server-to-server card payments, bank transfers, subscriptions and LRS remittances; the ordered call sequence for each; picking a purpose code from the closed regulator-defined list; payin, payment, refund and subscription status lifecycles; RFIs and action_required; refunds. Use when building or debugging anything that accepts a payment from a customer.
+description: How to collect money with the Glomo (Glomopay) API - choosing between payment links, orders with hosted checkout, server-to-server card payments, bank transfers, subscriptions and LRS remittances; the ordered call sequence for each; picking a purpose code from the closed regulator-defined list; payin, payment, refund and subscription status lifecycles; RFIs and action_required; refunds. Use when building or debugging anything that accepts a payment from a customer.
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
-# glomo payins
+# Glomo payins
 
 Read `glomo:integration` first for auth, amounts, `request_id` and error handling. This skill is about choosing the right flow and knowing what each state means. Take field shapes from https://docs.glomo.one/openapi.yaml.
 
@@ -14,7 +14,7 @@ Read `glomo:integration` first for auth, amounts, `request_id` and error handlin
 | The merchant wants to... | Flow | Start with |
 | --- | --- | --- |
 | Send the customer a link; no frontend work | Payment link (`POST /payin`) | https://docs.glomo.one/payin/payment-link.md |
-| Embed checkout in their own site or app | Order (`POST /orders`) + glomo checkout SDK | https://docs.glomo.one/payin/checkout.md |
+| Embed checkout in their own site or app | Order (`POST /orders`) + Glomo checkout SDK | https://docs.glomo.one/payin/checkout.md |
 | Take card details on their own PCI-DSS certified surface | Order + `POST /payment` (S2S) | https://docs.glomo.one/payin/server-to-server-payments.md |
 | Charge on a schedule or on demand | Subscription | https://docs.glomo.one/payin/subscriptions/set-up.md |
 | Remit funds abroad for a resident Indian under LRS | LRS order | https://docs.glomo.one/payin/resident-india-remittance-under-lrs/set-up.md |
@@ -25,7 +25,7 @@ Constraints that decide the flow:
 - The checkout SDK opens an order or a subscription. Both are created server-side with the secret key, never from the browser.
 - S2S is only for merchants who are PCI-DSS certified. Otherwise use checkout.
 - Subscriptions are cards only. Bank transfer cannot be recurring, and Indian-issued cards are not supported for subscriptions.
-- The bank transfer "Set up bank transfers" page is still a placeholder. Do not infer a call order from it; confirm the flow with glomo.
+- The bank transfer "Set up bank transfers" page is still a placeholder. Do not infer a call order from it; confirm the flow with Glomo.
 
 ## Every flow starts with a customer
 
@@ -78,7 +78,7 @@ Match on these public values. Some prose pages still use older names (Created, A
 
 ## Refunds
 
-- Only `success` payments, within 180 days, back to the original payment method only. Funded from the merchant's glomo balance.
+- Only `success` payments, within 180 days, back to the original payment method only. Funded from the merchant's Glomo balance.
 - Not refundable: pay-via-bank payments, add-funds payments, payments with compliance-withheld funds or a rejected compliance review, payments with any chargeback not won, and payments already fully refunded (pending refunds count). A refund also fails if the merchant balance can't cover it.
 - Partial refunds are cards only and only if enabled for the account. Otherwise a partial `amount` is a 400 ("Partial refunds are not enabled for this business"); nothing is refunded.
 - Several partial refunds are allowed, up to the remaining amount.

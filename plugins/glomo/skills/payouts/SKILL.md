@@ -1,19 +1,19 @@
 ---
 name: payouts
-description: How to send money with the glomo (Glomopay) API - creating and approving v2 beneficiaries, choosing a payout rail (UPI, IMPS, NEFT, RTGS, IPP, FTS, SEPA, FPS, NPP, SWIFT), with-quote vs without-quote payouts, payout purpose codes, the payout status lifecycle, which failures to retry, cancellation rules, queued payouts, balances and RFIs. Use when building or debugging anything that pays a beneficiary.
+description: How to send money with the Glomo (Glomopay) API - creating and approving v2 beneficiaries, choosing a payout rail (UPI, IMPS, NEFT, RTGS, IPP, FTS, SEPA, FPS, NPP, SWIFT), with-quote vs without-quote payouts, payout purpose codes, the payout status lifecycle, which failures to retry, cancellation rules, queued payouts, balances and RFIs. Use when building or debugging anything that pays a beneficiary.
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
-# glomo payouts
+# Glomo payouts
 
 Read `glomo:integration` first for auth, amounts, `request_id` and error handling. A payout moves real money, so the rules here are about never paying twice and never retrying a failure that needs a human. Take field shapes from https://docs.glomo.one/openapi.yaml.
 
 ## Ordered sequence
 
 1. **Beneficiary**: `POST /v2/beneficiaries` with `category: payout`. Store the `bene_` ID. There is no v1 beneficiary API.
-   - `notes` may have required fields. glomo configures them per account, and for beneficiaries they are checked on create. The beneficiary's country only changes format validation (for example, a PAN format for Indian beneficiaries). A missing required field is a 422 "Validation failed: Notes <field> is required", and type and validation errors come back the same way. It isn't LRS-only: a USD SWIFT `category: payout` beneficiary has been refused with "Notes tax_identification_number is required". No API lists the fields, so ask the developer to get them from their glomo account manager; don't guess keys.
-2. **Wait until the beneficiary is `active`.** If glomo has enabled beneficiary review on the account (it does this per account), new ones start `pending` and move to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`). Other accounts create them `active` straight away. A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
+   - `notes` may have required fields. Glomo configures them per account, and for beneficiaries they are checked on create. The beneficiary's country only changes format validation (for example, a PAN format for Indian beneficiaries). A missing required field is a 422 "Validation failed: Notes <field> is required", and type and validation errors come back the same way. It isn't LRS-only: a USD SWIFT `category: payout` beneficiary has been refused with "Notes tax_identification_number is required". No API lists the fields, so ask the developer to get them from their Glomo account manager; don't guess keys.
+2. **Wait until the beneficiary is `active`.** If Glomo has enabled beneficiary review on the account (it does this per account), new ones start `pending` and move to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`). Other accounts create them `active` straight away. A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
 3. **Documents** if the purpose code needs them: `POST /document`, then pass the `doc_` IDs in the payout's `documents`.
 4. **Quote** (optional): `POST /quotes` with `resource: payout` and `payment_method: {type: "bank_transfer", subtype: "local_transfer" | "swift_transfer"}`. It returns one option per rail of that subtype whose limits fit the amount, valid 30 minutes and usable once. It does not look at the beneficiary, so a quoted rail may still not suit this beneficiary: the payout is then a 400 "quote_id is not compatible with the selected beneficiary".
 5. **Payout**: `POST /payouts` with a deterministic `request_id`.
@@ -24,12 +24,12 @@ Guide: https://docs.glomo.one/payout/create.md. Lifecycle: https://docs.glomo.on
 ## With or without a quote
 
 - **With `quote_id`**: the quote fixes amounts, currencies and rail. Do not send `source_amount`, `destination_amount`, `source_currency`, `destination_currency` or `payment_rail` as well; that is a 400. Use this when the user must approve the exact rate and fee.
-- **Without a quote**: send the amounts, currencies and `payment_rail` yourself; glomo prices it at creation. Simpler for known corridors.
+- **Without a quote**: send the amounts, currencies and `payment_rail` yourself; Glomo prices it at creation. Simpler for known corridors.
 - LRS repatriation payouts (USD to INR back to an investor) cannot use a quote. Follow https://docs.glomo.one/payin/resident-india-remittance-under-lrs/set-up/withdrawal-flow-guide.md
 
 ## Choosing the rail
 
-**Always set `payment_rail`.** If you omit it, glomo uses SWIFT. That only works for beneficiaries with SWIFT details (a BIC, or an AED or EUR IBAN). Anyone else, such as an INR beneficiary with IFSC or UPI, or a GBP beneficiary with only a sort code, gets 400 "No rails available for this beneficiary". Where SWIFT does work, you pay SWIFT fees and wait SWIFT times when a local rail was available.
+**Always set `payment_rail`.** If you omit it, Glomo uses SWIFT. That only works for beneficiaries with SWIFT details (a BIC, or an AED or EUR IBAN). Anyone else, such as an INR beneficiary with IFSC or UPI, or a GBP beneficiary with only a sort code, gets 400 "No rails available for this beneficiary". Where SWIFT does work, you pay SWIFT fees and wait SWIFT times when a local rail was available.
 
 | Destination | Rails | Beneficiary needs |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Per-rail limits and details: https://docs.glomo.one/payout/rails.md. Only use ra
 
 - A beneficiary is eligible for a rail only if it holds that rail's identifiers. Collect them when you create the beneficiary.
 - SWIFT payouts are slower than local rails, which are automated. No SWIFT turnaround time is published, so don't quote one.
-- Do not promise a delivery date from the rail alone. Check https://docs.glomo.one/multi-currency-account/settlement-holidays.md and confirm processing windows with glomo.
+- Do not promise a delivery date from the rail alone. Check https://docs.glomo.one/multi-currency-account/settlement-holidays.md and confirm processing windows with Glomo.
 - For INR local rails, the purpose code must also be valid for the rail, or you get "not a valid purpose code for the selected payment rail".
 
 ## Purpose codes
@@ -58,7 +58,7 @@ Public statuses: `pending_approval`, `queued`, `in_progress`, `action_required`,
 - `pending_approval`: the account uses maker-checker. A payout created over the API waits here until someone approves it in the dashboard. Nothing is wrong; do not recreate it.
 - `queued`: waiting for balance (see below).
 - `in_progress`: submitted to the rail, or back under review after an RFI.
-- `action_required`: compliance screening did not clear. glomo may raise an RFI (email and dashboard notification). Answer a payout RFI in the Merchant Dashboard, or with `respondRfi` (`PATCH /v1/rfis/{id}/respond`) if you have the RFI ID: fetch it with `getRfi` (`GET /v1/rfis/{id}`), upload each document with `createDocument`, then send one `{rfi_doc_id, doc_id}` pair for every entry in `documents_required`, all in one call and with no `fields`. The payout object and its webhooks don't include the RFI ID today, and no webhook fires when the RFI is raised, so without the ID treat `action_required` as waiting on a human. After a response the payout goes to `in_progress` under review (the RFI reads as `under_review`), then resumes, is cancelled with `PAYOUT_REJECTED`, or returns to `action_required` if glomo asks for more, in which case respond again to the same RFI. https://docs.glomo.one/request-for-information/handle-rfi-for-a-payout.md
+- `action_required`: compliance screening did not clear. Glomo may raise an RFI (email and dashboard notification). Answer a payout RFI in the Merchant Dashboard, or with `respondRfi` (`PATCH /v1/rfis/{id}/respond`) if you have the RFI ID: fetch it with `getRfi` (`GET /v1/rfis/{id}`), upload each document with `createDocument`, then send one `{rfi_doc_id, doc_id}` pair for every entry in `documents_required`, all in one call and with no `fields`. The payout object and its webhooks don't include the RFI ID today, and no webhook fires when the RFI is raised, so without the ID treat `action_required` as waiting on a human. After a response the payout goes to `in_progress` under review (the RFI reads as `under_review`), then resumes, is cancelled with `PAYOUT_REJECTED`, or returns to `action_required` if Glomo asks for more, in which case respond again to the same RFI. https://docs.glomo.one/request-for-information/handle-rfi-for-a-payout.md
 - Terminal: `success`, `failed`, `cancelled`. None of them change again.
 
 A create call returns 201 even when the payout is already `failed` or `action_required`. Always read the status in the create response.
@@ -73,7 +73,7 @@ Read `error_code` and `error_description` on the payout. A terminal payout is ne
 | `QUOTE_EXPIRED` | Quote lapsed before the payout was submitted | New quote, new payout |
 | `QUEUE_EXPIRED` | Sat in the queue for 30 days | Fund the balance, then create a new payout |
 | `INVALID_BENE_*`, `INVALID_VPA`, `NAME_MISMATCH` | The bank or rail rejected the beneficiary details | Fix the beneficiary (new beneficiary if needed), then a new payout |
-| `PAYOUT_REJECTED` | Rejected by compliance after review (ends `cancelled`), or by the bank for a reason glomo does not map (ends `failed`) | Do not retry. Escalate to the developer and glomo support. |
+| `PAYOUT_REJECTED` | Rejected by compliance after review (ends `cancelled`), or by the bank for a reason Glomo does not map (ends `failed`) | Do not retry. Escalate to the developer and Glomo support. |
 | none, on a `failed` payout at creation | Compliance screening could not run | Retry once later with a new `request_id`; escalate if it repeats |
 
 Never auto-retry a payout on a timeout or 5xx with a new `request_id`. Reuse the same `request_id` (a 409 means it exists), or look it up with `GET /payouts?request_id=` first.

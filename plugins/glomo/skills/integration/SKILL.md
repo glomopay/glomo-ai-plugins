@@ -1,13 +1,13 @@
 ---
 name: integration
-description: Core conventions for building against the glomo (Glomopay) payments API - authentication, sandbox vs live, amounts and IDs, request_id idempotency, error handling and retry decisions, pagination, rate limits, quotes, and where to find the authoritative spec. Use whenever writing, reviewing or debugging code that calls api.glomopay.com, before reaching for the payin, payout, webhook or testing skills.
+description: Core conventions for building against the Glomo (Glomopay) payments API - authentication, sandbox vs live, amounts and IDs, request_id idempotency, error handling and retry decisions, pagination, rate limits, quotes, and where to find the authoritative spec. Use whenever writing, reviewing or debugging code that calls api.glomopay.com, before reaching for the payin, payout, webhook or testing skills.
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
-# glomo integration conventions
+# Glomo integration conventions
 
-glomo is a cross-border payments platform. This skill carries the judgement the API reference cannot: how to authenticate, how to tell a retryable failure from a terminal one, and how to avoid creating the same money movement twice. Field-level detail lives in the spec; fetch it rather than guessing.
+Glomo is a cross-border payments platform. This skill carries the judgement the API reference cannot: how to authenticate, how to tell a retryable failure from a terminal one, and how to avoid creating the same money movement twice. Field-level detail lives in the spec; fetch it rather than guessing.
 
 ## Ground truth, in order
 
@@ -31,7 +31,7 @@ When a value comes from a closed set (purpose codes, rails, currencies, countrie
 - Server-side calls send `Authorization: Bearer <secret key>`. The secret key comes from the dashboard, Settings > API Keys. It is shown once; store it in a secret manager, never in source or client code.
 - One base URL for both environments: `https://api.glomopay.com/api/v1` (a few resources are under `/api/v2`, for example `/v2/beneficiaries` and `/v2/virtual-accounts`; use the path the spec gives). The key decides the environment: a test key reaches sandbox, a live key reaches production. Do not build a separate sandbox host into config; switch keys.
 - The publishable key (`test_...` / `live_...`) is for client SDKs only. Using it on a server call returns 401.
-- New accounts start with test keys only. Live keys need glomo to enable live mode.
+- New accounts start with test keys only. Live keys need Glomo to enable live mode.
 - If the merchant has an IP allowlist, calls from other IPs get 403. When a correct call returns 403 from a new host, check the allowlist before changing the request.
 - Details: https://docs.glomo.one/platform/authentication.md
 
@@ -85,7 +85,7 @@ Note: https://docs.glomo.one/platform/errors.md shows a nested error object; the
 
 A documented, correct call can still fail because something is not enabled for the account: live mode, a payment method, a corridor, payout queueing, partial refunds, LRS. These usually come back as 403 or a 400 whose `message` names a capability rather than a field.
 
-When the request matches the spec and the error names a capability, stop. Do not rewrite the payload or retry variants. Tell the developer which capability the message names and that glomo support enables it.
+When the request matches the spec and the error names a capability, stop. Do not rewrite the payload or retry variants. Tell the developer which capability the message names and that Glomo support enables it.
 
 ## Pagination
 

@@ -1,13 +1,13 @@
 ---
 name: testing
-description: How to verify a glomo (Glomopay) integration end to end in sandbox before shipping - getting test keys, the sandbox-only mock endpoints that simulate inbound payments, payout and refund outcomes, beneficiary review, funds availability and settlement; the reserved 6623 amount that forces a sanctions-screening hit; test cards; step-by-step recipes to drive each flow to success and failure; and what sandbox cannot simulate. Use when testing, writing integration tests, or checking that generated glomo API code actually works.
+description: How to verify a Glomo (Glomopay) integration end to end in sandbox before shipping - getting test keys, the sandbox-only mock endpoints that simulate inbound payments, payout and refund outcomes, beneficiary review, funds availability and settlement; the reserved 6623 amount that forces a sanctions-screening hit; test cards; step-by-step recipes to drive each flow to success and failure; and what sandbox cannot simulate. Use when testing, writing integration tests, or checking that generated Glomo API code actually works.
 metadata:
-  version: "1.0.2"
+  version: "1.0.3"
 ---
 
-# glomo sandbox testing
+# Glomo sandbox testing
 
-Do not hand over glomo integration code that has only been reasoned about. Run it against sandbox, read the real responses, and fix anything that disagrees with what you assumed. Read `glomo:integration` first.
+Do not hand over Glomo integration code that has only been reasoned about. Run it against sandbox, read the real responses, and fix anything that disagrees with what you assumed. Read `glomo:integration` first.
 
 ## Sandbox basics
 
@@ -37,7 +37,7 @@ A 400 "State change not allowed" from `/payouts/mock` means the payout was not i
 
 ## Reserved test values
 
-- **Amount `6623`** (minor units, any currency): forces a sanctions-screening hit. What you get depends on whether post-payment screening is enabled for the account (off by default, and enabled per account separately for card and bank-transfer payments; ask glomo to enable it on your sandbox account):
+- **Amount `6623`** (minor units, any currency): forces a sanctions-screening hit. What you get depends on whether post-payment screening is enabled for the account (off by default, and enabled per account separately for card and bank-transfer payments; ask Glomo to enable it on your sandbox account):
   - Enabled: the payment succeeds, `compliance_status` becomes `action_required`, a payment-screening RFI is raised (`rfi_id` on the payment) and settlement is held. Test RFI handling with `GET /rfis/{id}`, `POST /document`, `PATCH /rfis/{id}/respond`. https://docs.glomo.one/request-for-information/compliance-reviews-and-rfis-on-successful-payments.md
   - Not enabled: the payment itself goes `action_required` with `error_code: SANCTION_HIT` and no RFI. That hold goes to support; it cannot be fixed over the API.
   - Test cards that carry their own compliance outcome are not affected by `6623`.
@@ -85,7 +85,7 @@ The public API doesn't list add-funds payins. `GET /payment?payment_type=add_fun
 - Expire an RFI on demand.
 - Simulate mock payments by card or pay-via-bank. `/payment/mock` is bank transfer only; cards go through checkout with test cards.
 - Settle currencies other than USD, EUR, GBP, AED and SGD.
-- Confirm account preconditions. A feature enabled in sandbox may not be enabled in live yet. Check with glomo before going live.
+- Confirm account preconditions. A feature enabled in sandbox may not be enabled in live yet. Check with Glomo before going live.
 
 ## Done means
 
