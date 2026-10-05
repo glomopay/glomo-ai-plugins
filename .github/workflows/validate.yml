@@ -21,7 +21,7 @@ jobs:
         run: claude plugin validate --strict .
       - name: Validate the plugin
         run: claude plugin validate --strict plugins/glomo
-      - name: MCP config sends the credential only to the glomo server
+      - name: MCP config sends the credential only to the Glomo server
         run: |
           jq -e '
             (.mcpServers | keys) == ["glomo"]

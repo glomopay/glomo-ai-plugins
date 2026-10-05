@@ -1,9 +1,9 @@
 {
   "name": "glomo",
-  "version": "0.1.2",
-  "description": "Connects your agent to the glomo MCP server: search the docs, find and inspect API operations, generate sample requests, get the ordered calls for an integration, and run calls against your sandbox account.",
+  "version": "0.1.3",
+  "description": "Connects your agent to the Glomo MCP server: search the docs, find and inspect API operations, generate sample requests, get the ordered calls for an integration, and run calls against your sandbox account.",
   "author": {
-    "name": "glomo",
+    "name": "Glomo",
     "url": "https://glomo.one"
   },
   "homepage": "https://docs.glomo.one/platform/mcp-server",
