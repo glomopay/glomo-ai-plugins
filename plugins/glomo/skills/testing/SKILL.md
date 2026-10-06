@@ -2,7 +2,7 @@
 name: testing
 description: How to verify a Glomo (Glomopay) integration end to end in sandbox before shipping - getting test keys, the sandbox-only mock endpoints that simulate inbound payments, payout and refund outcomes, beneficiary review, funds availability and settlement; the reserved 6623 amount that forces a sanctions-screening hit; test cards; step-by-step recipes to drive each flow to success and failure; and what sandbox cannot simulate. Use when testing, writing integration tests, or checking that generated Glomo API code actually works.
 metadata:
-  version: "1.0.3"
+  version: "1.0.4"
 ---
 
 # Glomo sandbox testing
@@ -75,6 +75,8 @@ The public API doesn't list add-funds payins. `GET /payment?payment_type=add_fun
 **Refund**: a successful payment → `POST /refunds` with a `request_id` → `PATCH /refunds/{id}/mock_update_status {status: "success"}` → expect `refund.success`. Send the same `request_id` again and expect 400 "Refund already exists for this request_id".
 
 **Idempotency**: for every create call that takes a `request_id`, send it twice and confirm your code treats the duplicate response as "already done" and does not create a second object: 409 for payouts, 400 "already exists for this request_id" for orders, payments and refunds. Payment links have no `request_id`; check that a retried link create looks for an existing link first.
+
+**A fresh `request_id` per test run**: once a payout has used a `request_id`, it stays taken on the account, so one hard-coded in a test collides with the payout an earlier run created. Build a unique one per run, for example by including a run ID (`payout-test-<run_id>-1`). A 409 on a payout create means a payout with that `request_id` already exists. Fetch it with `GET /payouts?request_id=…` and check it is the one you meant before you treat it as your new payout.
 
 **LRS**: follow the sandbox notes in https://docs.glomo.one/payin/resident-india-remittance-under-lrs/set-up.md. Sandbox LRS payment success is set from the dashboard, not by a mock endpoint.
 

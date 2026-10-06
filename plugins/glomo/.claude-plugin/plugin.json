@@ -1,6 +1,6 @@
 {
   "name": "glomo",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Connects your agent to the Glomo MCP server: search the docs, find and inspect API operations, generate sample requests, get the ordered calls for an integration, and run calls against your sandbox account.",
   "author": {
     "name": "Glomo",
