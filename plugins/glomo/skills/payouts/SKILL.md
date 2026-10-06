@@ -2,7 +2,7 @@
 name: payouts
 description: How to send money with the Glomo (Glomopay) API - creating and approving v2 beneficiaries, choosing a payout rail (UPI, IMPS, NEFT, RTGS, IPP, FTS, SEPA, FPS, NPP, SWIFT), with-quote vs without-quote payouts, payout purpose codes, the payout status lifecycle, which failures to retry, cancellation rules, queued payouts, balances and RFIs. Use when building or debugging anything that pays a beneficiary.
 metadata:
-  version: "1.1.2"
+  version: "1.1.3"
 ---
 
 # Glomo payouts
@@ -12,8 +12,8 @@ Read `glomo:integration` first for auth, amounts, `request_id` and error handlin
 ## Ordered sequence
 
 1. **Beneficiary**: `POST /v2/beneficiaries` with `category: payout`. Store the `bene_` ID. There is no v1 beneficiary API.
-   - `notes` may have required fields. Glomo configures them per account, and for beneficiaries they are checked on create. The beneficiary's country only changes format validation (for example, a PAN format for Indian beneficiaries). A missing required field is a 422 "Validation failed: Notes <field> is required", and type and validation errors come back the same way. It isn't LRS-only: a USD SWIFT `category: payout` beneficiary has been refused with "Notes tax_identification_number is required". No API lists the fields, so ask the developer to get them from their Glomo account manager; don't guess keys.
-2. **Wait until the beneficiary is `active`.** If Glomo has enabled beneficiary review on the account (it does this per account), new ones start `pending` and move to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`). Other accounts create them `active` straight away. A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
+   - `notes` may have required fields. Glomo configures them per account, and for beneficiaries they are checked on create. The beneficiary's country only changes format validation (for example, a PAN format for Indian beneficiaries). A missing required field is a 422 "Validation failed: Notes <field> is required", and type and validation errors come back the same way. The rule belongs to the account, not to the currency or rail, and it isn't LRS-only: on one account, both a USD and a GBP SWIFT `category: payout` beneficiary were refused with "Notes tax_identification_number is required" because that account requires the field. No API lists the fields, but the 422 names each missing one. Read the field name from the message, add that key to `notes`, and ask the developer only for its value. Never guess a value.
+2. **Check the beneficiary is `active`.** A new beneficiary is `active` straight away unless Glomo has enabled beneficiary review on the account (it does this per account). With review enabled it starts `pending` and moves to `active` or `rejected` (`beneficiary` webhook, or `GET /v2/beneficiaries/{id}`); in sandbox, approve it with `PATCH /v2/beneficiaries/{id}/mock-review` `{"review_action": "approve"}` (`glomo:testing`). A payout create against a `pending` or `rejected` beneficiary is refused with 400 ("verification is pending" / "has been rejected") and no payout is created.
 3. **Documents** if the purpose code needs them: `POST /document`, then pass the `doc_` IDs in the payout's `documents`.
 4. **Quote** (optional): `POST /quotes` with `resource: payout` and `payment_method: {type: "bank_transfer", subtype: "local_transfer" | "swift_transfer"}`. It returns one option per rail of that subtype whose limits fit the amount, valid 30 minutes and usable once. It does not look at the beneficiary, so a quoted rail may still not suit this beneficiary: the payout is then a 400 "quote_id is not compatible with the selected beneficiary".
 5. **Payout**: `POST /payouts` with a deterministic `request_id`.
@@ -39,6 +39,8 @@ Guide: https://docs.glomo.one/payout/create.md. Lifecycle: https://docs.glomo.on
 | GBP | `fps` | Domestic account number + sort code. A GB IBAN alone does not qualify for `fps`. |
 | AUD | `npp` | BSB + domestic account number. Not yet in the spec's `payment_rail` enum; confirm it is available for the account before relying on it. |
 | Anything else | `swift` | Account number + `swift_code` (BIC); the BIC country must match the bank address country |
+
+Only INR, AED, EUR, GBP and AUD have local rails. For any other destination currency, USD included, the rail is SWIFT, so the beneficiary needs `swift_code`; a `local_transfer` quote for that currency is a 400 "local_transfer is not supported for <currency> destination". In the five local-rail currencies, a beneficiary without that rail's identifiers (for example, a GBP beneficiary with only a BIC) can only be paid by SWIFT.
 
 Per-rail limits and details: https://docs.glomo.one/payout/rails.md. Only use rail values from that page, the spec enum and the table above.
 
