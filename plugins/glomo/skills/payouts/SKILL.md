@@ -2,7 +2,7 @@
 name: payouts
 description: How to send money with the Glomo (Glomopay) API - creating and approving v2 beneficiaries, choosing a payout rail (UPI, IMPS, NEFT, RTGS, IPP, FTS, SEPA, FPS, NPP, SWIFT), with-quote vs without-quote payouts, payout purpose codes, the payout status lifecycle, which failures to retry, cancellation rules, queued payouts, balances and RFIs. Use when building or debugging anything that pays a beneficiary.
 metadata:
-  version: "1.1.3"
+  version: "1.1.4"
 ---
 
 # Glomo payouts
@@ -60,7 +60,7 @@ Public statuses: `pending_approval`, `queued`, `in_progress`, `action_required`,
 - `pending_approval`: the account uses maker-checker. A payout created over the API waits here until someone approves it in the dashboard. Nothing is wrong; do not recreate it.
 - `queued`: waiting for balance (see below).
 - `in_progress`: submitted to the rail, or back under review after an RFI.
-- `action_required`: compliance screening did not clear. Glomo may raise an RFI (email and dashboard notification). Answer a payout RFI in the Merchant Dashboard, or with `respondRfi` (`PATCH /v1/rfis/{id}/respond`) if you have the RFI ID: fetch it with `getRfi` (`GET /v1/rfis/{id}`), upload each document with `createDocument`, then send one `{rfi_doc_id, doc_id}` pair for every entry in `documents_required`, all in one call and with no `fields`. The payout object and its webhooks don't include the RFI ID today, and no webhook fires when the RFI is raised, so without the ID treat `action_required` as waiting on a human. After a response the payout goes to `in_progress` under review (the RFI reads as `under_review`), then resumes, is cancelled with `PAYOUT_REJECTED`, or returns to `action_required` if Glomo asks for more, in which case respond again to the same RFI. https://docs.glomo.one/request-for-information/handle-rfi-for-a-payout.md
+- `action_required`: compliance screening did not clear. Glomo may raise an RFI (email and dashboard notification). Answer a payout RFI in the Merchant Dashboard, or with `respondRfi` (`PATCH /v1/rfis/{id}/respond`): fetch it with `getRfi` (`GET /v1/rfis/{id}`), upload each document with `createDocument`, then send one `{rfi_doc_id, doc_id}` pair for every entry in `documents_required`, all in one call and with no `fields`. The payout object and its webhooks don't include the RFI ID; take it from the `rfi` webhook with `event_type: action_required` (`data.id`, with `data.entity_id` = payout ID), or from `getRfis` (`GET /v1/rfis?search=<payout id>`). The payout can sit in `action_required` before the RFI is raised; until then it is waiting on a human. After a response the payout goes to `in_progress` under review (the RFI reads as `under_review`), then resumes, is cancelled with `PAYOUT_REJECTED`, or returns to `action_required` if Glomo asks for more, in which case respond again to the same RFI. https://docs.glomo.one/request-for-information/handle-rfi-for-a-payout.md
 - Terminal: `success`, `failed`, `cancelled`. None of them change again.
 
 A create call returns 201 even when the payout is already `failed` or `action_required`. Always read the status in the create response.
